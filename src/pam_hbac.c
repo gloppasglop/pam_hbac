@@ -27,6 +27,9 @@
 
 #include <ldap.h>
 
+/* TODO: Only includes for AIX */
+#include <usersec.h>
+
 #include "pam_hbac.h"
 #include "pam_hbac_obj.h"
 #include "pam_hbac_ldap.h"
@@ -128,6 +131,12 @@ static int
 pam_hbac_get_items(pam_handle_t *pamh, struct pam_items *pi, int flags)
 {
     int ret;
+    
+    /* TODO: Only needed for AIX */ 
+    char *attribute;
+    char *registry;
+    char *username;
+    /* END TODO */
 
     ret = get_pam_stritem(pamh, PAM_SERVICE, &(pi->pam_service));
     if (ret != PAM_SUCCESS) return ret;
@@ -148,6 +157,31 @@ pam_hbac_get_items(pam_handle_t *pamh, struct pam_items *pi, int flags)
         }
         return PAM_USER_UNKNOWN;
     }
+    
+    /* TODO: Only for AIX */
+    attribute = strdup(S_REGISTRY);
+    username = strdup(pi->pam_user);
+    ret = getuserattr(username, attribute, &registry, SEC_CHAR);
+    free(attribute);
+    free(username);
+    if (ret != 0) {
+        logger(pamh, LOG_NOTICE, "getuserattr S_REGISTRY failed for %s\n", pi->pam_user);
+        if (flags & PAM_IGNORE_UNKNOWN_USER_ARG) {
+            return PAM_IGNORE;
+        }
+        return PAM_USER_UNKNOWN;
+    }
+
+    logger(pamh, LOG_DEBUG, "REGISTRY for user %s is %s\n", pi->pam_user,registry);
+    if (strcmp(registry,"files") == 0) {
+        logger(pamh, LOG_NOTICE, "pam_hbac will not handle users with REGISTRY=files: %s\n", pi->pam_user);
+        if (flags & PAM_IGNORE_UNKNOWN_USER_ARG) {
+            return PAM_IGNORE;
+        }
+        return PAM_USER_UNKNOWN;
+    }
+    /* END TODO: Only for AIX */
+
     pi->pam_user_size = strlen(pi->pam_user) + 1;
 
     ret = get_pam_stritem(pamh, PAM_TTY, &(pi->pam_tty));
