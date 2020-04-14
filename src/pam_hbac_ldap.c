@@ -165,10 +165,6 @@ parse_entry(pam_handle_t *pamh,
      * to an empty value?
      */
 
-    if (ber != NULL) {
-        ber_free(ber, 0);
-    }
-
     return 0;
 }
 
